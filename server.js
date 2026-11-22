@@ -146,8 +146,21 @@ function publicDecision(decision, { includeResults = false } = {}) {
   if (visible) {
     const results = score(decision);
     const winnerRow = results.options.find(row => row.id === results.winner?.id);
-    const rationale = !results.totalVotes ? (decision.closedAt ? 'No guest votes were submitted; the host’s first-listed option is the default.' : 'No votes yet. The winner will be the option with the most points.') :
-      `${winnerRow.name} leads with ${winnerRow.points} points and ${winnerRow.firsts} first-place ${winnerRow.firsts === 1 ? 'vote' : 'votes'} from ${results.totalVotes} ${results.totalVotes === 1 ? 'ballot' : 'ballots'}.`;
+    let rationale;
+    if (!results.totalVotes) {
+      rationale = decision.closedAt ? 'No guest votes were submitted; the host’s first-listed option is the default.' : 'No votes yet. The winner will be the option with the most points.';
+    } else {
+      const tiedOnPoints = results.options.filter(row => row.points === winnerRow.points);
+      if (tiedOnPoints.length === 1) {
+        rationale = `${winnerRow.name} leads with ${winnerRow.points} points and ${winnerRow.firsts} first-place ${winnerRow.firsts === 1 ? 'vote' : 'votes'} from ${results.totalVotes} ${results.totalVotes === 1 ? 'ballot' : 'ballots'}.`;
+      } else {
+        const topFirsts = Math.max(...tiedOnPoints.map(row => row.firsts));
+        const tiedOnFirsts = tiedOnPoints.filter(row => row.firsts === topFirsts);
+        rationale = tiedOnFirsts.length === 1
+          ? `${winnerRow.name} ranks first in the ${winnerRow.points}-point tie with more first-place votes (${winnerRow.firsts} vs. ${Math.max(...tiedOnPoints.filter(row => row.id !== winnerRow.id).map(row => row.firsts))}), from ${results.totalVotes} ${results.totalVotes === 1 ? 'ballot' : 'ballots'}.`
+          : `${winnerRow.name} ranks first by the host’s original option order after a tie on ${winnerRow.points} points and ${winnerRow.firsts} first-place ${winnerRow.firsts === 1 ? 'vote' : 'votes'} from ${results.totalVotes} ${results.totalVotes === 1 ? 'ballot' : 'ballots'}.`;
+      }
+    }
     result.results = { ...results, rationale };
   }
   return result;

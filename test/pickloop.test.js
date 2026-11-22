@@ -94,6 +94,34 @@ test('create → private guest vote → reveal/close → recover host → timezo
   assert.match(calendar.body, /SUMMARY:Friday together: Dinner/);
 });
 
+test('vote rationale explains point, first-place, and option-order tie-breaks', async t => {
+  const base = Date.parse('2026-11-21T12:00:00Z'), { request } = await fixture(t, base);
+  const readHostResults = async decision => request(`/api/decisions/${decision.id}/host`, {
+    headers:{ authorization:`Bearer ${decision.hostToken}` }
+  });
+  const submitVote = (id, guestToken, ranking) => request(`/api/decisions/${id}/votes`, {
+    method:'POST', body:JSON.stringify({ guestToken, ranking })
+  });
+
+  const optionOrderTie = await createDecision(request, base);
+  assert.equal(optionOrderTie.response.status, 201);
+  const optionOrderDecision = { ...optionOrderTie.body.decision, hostToken:optionOrderTie.body.hostToken };
+  await submitVote(optionOrderDecision.id, 'tie-a', ['1']);
+  await submitVote(optionOrderDecision.id, 'tie-b', ['2']);
+  const optionOrderResults = await readHostResults(optionOrderDecision);
+  assert.equal(optionOrderResults.body.results.winner.id, '1');
+  assert.match(optionOrderResults.body.results.rationale, /ranks first by the host’s original option order after a tie on 3 points and 1 first-place vote/);
+
+  const firstPlaceTie = await createDecision(request, base);
+  assert.equal(firstPlaceTie.response.status, 201);
+  const firstPlaceDecision = { ...firstPlaceTie.body.decision, hostToken:firstPlaceTie.body.hostToken };
+  await submitVote(firstPlaceDecision.id, 'first-a', ['1', '2']);
+  await submitVote(firstPlaceDecision.id, 'first-b', ['3', '2', '1']);
+  const firstPlaceResults = await readHostResults(firstPlaceDecision);
+  assert.equal(firstPlaceResults.body.results.winner.id, '1');
+  assert.match(firstPlaceResults.body.results.rationale, /ranks first in the 4-point tie with more first-place votes \(1 vs\. 0\)/);
+});
+
 test('deadline auto-closes voting; expiration cleanup returns 410', async t => {
   const base = Date.parse('2026-11-21T12:00:00Z'), fixtureData = await fixture(t, base), { request, setTime } = fixtureData;
   const deadlineAt = new Date(base + 60_000).toISOString();

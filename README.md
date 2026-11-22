@@ -1,33 +1,37 @@
 # PickLoop
 
-PickLoop helps a group choose a plan with a short ranked ballot. It has no accounts or external services.
+PickLoop helps groups choose a plan with anonymous ranked ballots. It has no accounts or external services.
 
 ## Run locally
 
-Requires Node.js 18 or newer. From this folder:
+Requires Node.js 18 or newer. No dependencies need installing.
 
 ```sh
 npm start
 ```
 
-Open <http://localhost:3000>. Create a decision, then share the guest link. The host page stays at `/host/<id>` in the browser that created the decision; bookmark it if you need to return later. The guest link is `/d/<id>` and expires after 30 days. Data is stored in `data/decisions.json` next to the app. Set `PICKLOOP_DATA_FILE` to use a different location.
+Open <http://localhost:3000>. By default the app listens only on this computer. To let devices on your local network reach it, start with `HOST=0.0.0.0` and `PORT=3000` set in the environment, then open PickLoop from this computer using its LAN address (for example, `http://192.168.1.20:3000`) so generated invite links use that address. This exposes the app on the network without TLS; share only with people you trust. It is not deployed or internet-accessible by default.
 
-Run the integration check with:
+Each decision link expires after 30 days. Guests can see options and details, but aggregate scores stay private until the host reveals them or closes voting. Event date/time and voting deadline are interpreted in the host browser's selected time zone. A deadline closes voting on the first request at or after that time. Guests can revise their ballot until then.
+
+## Host recovery
+
+After creating a decision, save the private recovery link somewhere safe and acknowledge the prompt to unlock host controls. Anyone with that link can manage the decision. It is shown once; the host can rotate it to invalidate the previous link. It is separate from the guest invite and is never included in invite text.
+
+## Data and calendar
+
+Decision data is stored in `data/decisions.json` with an atomic replacement and previous-version `.bak` file. Expired decision content is removed during startup and subsequent API requests; short-lived expired-link records preserve a clear 410 response. `/healthz` checks the local storage path. Set `PICKLOOP_DATA_FILE` to store the JSON file elsewhere.
+
+The store is for one local Node process; it has no cross-process locking, hosted database, or backup service. Recovery links are capability secrets, not user accounts, and anonymous vote deduplication is per browser token, not per person. Losing the recovery link means losing host control.
+
+The downloadable `.ics` event uses UTC timestamps, records the host's IANA time zone for context, and uses the selected event duration. Calendar clients display UTC events in each attendee's local time.
+
+## Tests and scope
+
+Run the integration and storage checks with:
 
 ```sh
 npm test
 ```
 
-## Votes and privacy
-
-Guests rank up to three options. First, second and third choices earn 3, 2 and 1 points. The highest score wins. Ties go to more first-place votes, then the host's original option order. A random browser token lets a guest update their ballot; the server stores one current ballot per token. There are no names, accounts, analytics, or external integrations. Anyone with a decision link can view its options and aggregate results.
-
-The host close token is returned once when creating a decision and kept in that browser's local storage. The server stores only its SHA-256 hash. Clearing that browser's site data loses the host controls; this demo has no recovery flow.
-
-## Persistence seam and limits
-
-This is a small single-process Node demo with JSON file persistence, not a hosted multi-instance service. It works for sharing links between browsers that can reach the same running server, such as devices on the same network. For internet-wide use, move the decision store to a shared database and serve it over HTTPS. Anonymous deduplication is per browser token, not per human; a guest can vote again from another browser or device. The JSON store has no multi-process locking or backup/restore support. Calendar downloads use the decision's required date and time and assume a one-hour event.
-
-## Scope
-
-Options are manually entered. There is no chat ingestion, contact sync, venue search, payment, account system, or hidden recommendation logic.
+Options are manually curated. There is no chat ingestion, contact sync, venue search, payment, account system, native app, or hidden AI choice.

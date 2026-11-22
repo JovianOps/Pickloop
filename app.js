@@ -44,7 +44,7 @@ const copyText = async (text, button) => {
 };
 const detailHtml = decision => {
   const d = decision.details || {};
-  return `<div class="details"><span class="detail">◷ ${esc(fmt(d.when, d.timeZone))} · ${esc(d.durationMinutes || 60)} min</span>${d.location ? `<span class="detail">⌖ ${esc(d.location)}</span>` : ''}${d.budget ? `<span class="detail">$ ${esc(d.budget)}</span>` : ''}${d.vibe ? `<span class="detail">✳ ${esc(d.vibe)}</span>` : ''}</div>${d.availability ? `<p class="footer-note" style="margin-top:10px">Availability: ${esc(d.availability)}</p>` : ''}`;
+  return `<div class="details"><span class="detail">◷ ${esc(fmt(d.when, d.timeZone))}${d.timeZone ? ` · ${esc(d.timeZone)}` : ''} · ${esc(d.durationMinutes || 60)} min</span>${d.location ? `<span class="detail">⌖ ${esc(d.location)}</span>` : ''}${d.budget ? `<span class="detail">$ ${esc(d.budget)}</span>` : ''}${d.vibe ? `<span class="detail">✳ ${esc(d.vibe)}</span>` : ''}</div>${d.availability ? `<p class="footer-note" style="margin-top:10px">Availability: ${esc(d.availability)}</p>` : ''}`;
 };
 const layout = (main, aside = '') => `<div class="layout"><section>${main}</section>${aside ? `<aside class="side-panel">${aside}</aside>` : ''}</div>`;
 const resultsHtml = decision => {

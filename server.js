@@ -146,8 +146,15 @@ function publicDecision(decision, { includeResults = false } = {}) {
   if (visible) {
     const results = score(decision);
     const winnerRow = results.options.find(row => row.id === results.winner?.id);
-    const rationale = !results.totalVotes ? (decision.closedAt ? 'No guest votes were submitted; the host’s first-listed option is the default.' : 'No votes yet. The winner will be the option with the most points.') :
+    const tiedLeaders = results.options.filter(row => row.points === winnerRow?.points);
+    let rationale = !results.totalVotes ? (decision.closedAt ? 'No guest votes were submitted; the host’s first-listed option is the default.' : 'No votes yet. The winner will be the option with the most points.') :
       `${winnerRow.name} leads with ${winnerRow.points} points and ${winnerRow.firsts} first-place ${winnerRow.firsts === 1 ? 'vote' : 'votes'} from ${results.totalVotes} ${results.totalVotes === 1 ? 'ballot' : 'ballots'}.`;
+    if (tiedLeaders.length > 1) {
+      const nextLeader = tiedLeaders[1];
+      rationale = winnerRow.firsts === nextLeader.firsts
+        ? `${winnerRow.name} edged ${nextLeader.name} on original option order: both had ${winnerRow.points} points and ${winnerRow.firsts} first-place ${winnerRow.firsts === 1 ? 'vote' : 'votes'}.`
+        : `${winnerRow.name} won the points tie with ${winnerRow.firsts} first-place ${winnerRow.firsts === 1 ? 'vote' : 'votes'}, ahead of ${nextLeader.name} with ${nextLeader.firsts} first-place ${nextLeader.firsts === 1 ? 'vote' : 'votes'}.`;
+    }
     result.results = { ...results, rationale };
   }
   return result;

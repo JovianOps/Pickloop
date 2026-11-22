@@ -116,6 +116,32 @@ test('deadline auto-closes voting; expiration cleanup returns 410', async t => {
   assert.equal(fixtureData.store.readAll()[expiredId], undefined, 'expired decision data is removed from storage');
 });
 
+test('result rationale explains both tie-break rules', async t => {
+  const base = Date.parse('2026-11-21T12:00:00Z'), { request } = await fixture(t, base);
+  const orderTie = await createDecision(request, base);
+  const orderId = orderTie.body.decision.id, orderHostToken = orderTie.body.hostToken;
+  await request(`/api/decisions/${orderId}/votes`, { method:'POST', body:JSON.stringify({ guestToken:'order-a', ranking:['1','2','3'] }) });
+  await request(`/api/decisions/${orderId}/votes`, { method:'POST', body:JSON.stringify({ guestToken:'order-b', ranking:['2','1'] }) });
+  const orderResult = await request(`/api/decisions/${orderId}/host`, { headers:{ authorization:`Bearer ${orderHostToken}` } });
+  assert.equal(orderResult.body.results.winner.id, '1');
+  assert.match(orderResult.body.results.rationale, /edged Mini golf on original option order/);
+
+  const firstPlaceTie = await createDecision(request, base, { options:['Mini golf','Dinner','Movie night'] });
+  const firstPlaceId = firstPlaceTie.body.decision.id, firstPlaceHostToken = firstPlaceTie.body.hostToken;
+  for (const [guestToken, ranking] of [
+    ['first-a', ['2','3','1']],
+    ['first-b', ['3','1','2']],
+    ['first-c', ['3','1','2']],
+    ['first-d', ['2','1']],
+    ['first-e', ['1','2']]
+  ]) {
+    await request(`/api/decisions/${firstPlaceId}/votes`, { method:'POST', body:JSON.stringify({ guestToken, ranking }) });
+  }
+  const firstPlaceResult = await request(`/api/decisions/${firstPlaceId}/host`, { headers:{ authorization:`Bearer ${firstPlaceHostToken}` } });
+  assert.equal(firstPlaceResult.body.results.winner.id, '2');
+  assert.match(firstPlaceResult.body.results.rationale, /won the points tie with 2 first-place votes, ahead of Mini golf with 1 first-place vote/);
+});
+
 test('storage restores an atomic backup and reports health', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pickloop-store-'));
   t.after(() => fs.rmSync(dir, { recursive:true, force:true }));
